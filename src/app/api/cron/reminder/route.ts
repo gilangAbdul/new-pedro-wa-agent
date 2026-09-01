@@ -48,6 +48,13 @@ export async function GET(request: Request) {
     const results = [];
 
     for (const pegawai of jadwalList) {
+      const healthCheck = await fetch(`${process.env.WA_SERVICE_URL}/health`).catch(() => null);
+      const healthData = healthCheck ? await healthCheck.json().catch(() => null) : null;
+
+      if (!healthData?.waReady) {
+        console.error("🛑 wa-service tidak siap, hentikan batch reminder untuk keamanan akun.");
+        break; // STOP total, jangan lanjut ke nomor berikutnya
+      }
       let messageBody;
 
       if (type === 'h-1') {
@@ -60,7 +67,8 @@ export async function GET(request: Request) {
       results.push({ nama: pegawai.Nama, no_wa: pegawai.No_WA, result });
 
       // Beri jeda antar pesan supaya tidak dianggap spam oleh WhatsApp
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      const delaySeconds = 45 + Math.random() * 45; // 45-90 detik, acak
+      await new Promise((resolve) => setTimeout(resolve, delaySeconds * 1000));
     }
 
     return NextResponse.json({ success: true, count: jadwalList.length, results });

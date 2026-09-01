@@ -1,7 +1,7 @@
 {
   "crons": [
     { "path": "/api/cron/reminder?type=h-1", "schedule": "0 10 * * *" },
-    { "path": "/api/cron/reminder", "schedule": "0 9 * * *" },
+    { "path": "/api/cron/reminder?type=hari-h", "schedule": "30 9 * * *" },
     { "path": "/api/cron/categorize", "schedule": "0 17 * * *" }
   ]
 }
