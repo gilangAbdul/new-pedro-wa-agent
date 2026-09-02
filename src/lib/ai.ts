@@ -13,7 +13,7 @@ const googleClient = new OpenAI({
 });
 
 const FALLBACK_TEXT = "Maaf, Pedro sedang sibuk merapikan data. Coba lagi nanti ya!";
-const OFFICIAL_DOMAINS = ["metrokota.bps.go.id", "cekbansos.kemensos.go.id"];
+const OFFICIAL_DOMAINS = ["metrokota.bps.go.id", "cekbansos.kemensos.go.id", "dtsen-form.bps.go.id"];
 
 function sanitizeAIOutput(text: string): string {
   let cleaned = text
@@ -32,7 +32,7 @@ async function callAI(
 ): Promise<string> {
   try {
     const completion = await openai.chat.completions.create({
-      model: process.env.AI_MODEL || "google/gemini-1.5-flash",
+      model: process.env.AI_MODEL || "google/gemini-3.1-flash-lite",
       messages,
     });
     const raw = completion.choices[0]?.message?.content || FALLBACK_TEXT;
