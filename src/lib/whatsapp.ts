@@ -1,4 +1,4 @@
-export async function sendWhatsAppMessage(to: string, body: string) {
+export async function sendWhatsAppMessage(to: string, body: string, mentions?: string[]) {
   try {
     const res = await fetch(`${process.env.WA_SERVICE_URL}/send`, {
       method: 'POST',
@@ -6,7 +6,7 @@ export async function sendWhatsAppMessage(to: string, body: string) {
         'Content-Type': 'application/json',
         'x-api-key': process.env.WA_SERVICE_API_KEY!,
       },
-      body: JSON.stringify({ to, body }),
+      body: JSON.stringify({ to, body, mentions }),
     });
 
     const data = await res.json();

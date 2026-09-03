@@ -3,7 +3,6 @@ import fs from 'fs';
 import path from 'path';
 import { sendWhatsAppMessage } from '@/lib/whatsapp';
 
-// Fungsi Helper Pembaca CSV (tetap sama)
 function getJadwalByDate(targetDateStr: string) {
   const filePath = path.join(process.cwd(), 'data', 'jadwal_piket.csv');
   const fileContent = fs.readFileSync(filePath, 'utf-8');
@@ -30,6 +29,7 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type');
+    const dryRun = searchParams.get('dryRun') === 'true';
 
     const today = new Date();
     let targetDate = new Date();
@@ -44,34 +44,55 @@ export async function GET(request: Request) {
       return NextResponse.json({ message: `Tidak ada jadwal piket untuk tanggal ${formattedTargetDate}` });
     }
 
-    // Kirim pesan teks biasa (tidak perlu template lagi)
-    const results = [];
-
-    for (const pegawai of jadwalList) {
-      const healthCheck = await fetch(`${process.env.WA_SERVICE_URL}/health`).catch(() => null);
-      const healthData = healthCheck ? await healthCheck.json().catch(() => null) : null;
-
-      if (!healthData?.waReady) {
-        console.error("🛑 wa-service tidak siap, hentikan batch reminder untuk keamanan akun.");
-        break; // STOP total, jangan lanjut ke nomor berikutnya
-      }
-      let messageBody;
-
-      if (type === 'h-1') {
-        messageBody = `*PENGINGAT JADWAL PIKET PST*\n\n Halo, Bpk/Ibu *${pegawai.Nama}*!👋\n\nMengingatkan bahwa *besok* pada tanggal *${formattedTargetDate}*, Bpk/Ibu dijadwalkan bertugas sebagai *Petugas PST* pada *sesi ${pegawai.Sesi}*.\n\nMohon untuk menggunakan *Pakaian Dinas Harian (PDH) Biru lengkap dengan atribut*. Mari berikan pelayanan terbaik dan profesional bagi _#SahabatData._\n\nTerima kasih atas dedikasi Bpk/Ibu! 🙏 \n\n _Pesan Otomatis dari New Pedro BPS Kota Metro_`;
-      } else {
-        messageBody = `*PENGINGAT PRESENSI & LOGBOOK PST*\n\n Semangat Sore, Bpk/Ibu *${pegawai.Nama}*\n\nTerima kasih Anda telah bertugas di meja layanan PST BPS Kota Metro hari ini pada *sesi ${pegawai.Sesi}*.\n\nJangan lupa untuk melakukan pengisian Daftar Hadir & Logbook Presensi Petugas PST melalui tautan resmi berikut:\n\n🔗 *s.bps.go.id/presensi_PST_Metro*\n\nKedisiplinan Bpk/Ibu dalam mengisi presensi sangat mendukung akuntabilitas dan pencatatan kinerja layanan instansi kita.✨\n\n_Pesan Otomatis dari New Pedro BPS Kota Metro_`;
-      }
-
-      const result = await sendWhatsAppMessage(pegawai.No_WA, messageBody);
-      results.push({ nama: pegawai.Nama, no_wa: pegawai.No_WA, result });
-
-      // Beri jeda antar pesan supaya tidak dianggap spam oleh WhatsApp
-      const delaySeconds = 45 + Math.random() * 45; // 45-90 detik, acak
-      await new Promise((resolve) => setTimeout(resolve, delaySeconds * 1000));
+    const groupId = process.env.PST_GROUP_ID;
+    if (!groupId) {
+      return NextResponse.json({ error: 'PST_GROUP_ID belum diset di environment variable' }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, count: jadwalList.length, results });
+    // Susun nomor bersih & ID mention untuk tiap petugas
+    const petugasWithClean = jadwalList.map((p) => ({
+      ...p,
+      cleanNumber: p.No_WA.replace(/\D/g, ''),
+    }));
+
+    const mentions = petugasWithClean.map((p) => `${p.cleanNumber}@c.us`);
+
+    let messageBody: string;
+
+    if (type === 'h-1') {
+      const daftarPetugas = petugasWithClean
+        .map((p) => `@${p.cleanNumber} (${p.Sesi})`)
+        .join('\n');
+
+      messageBody = `*PENGINGAT JADWAL PIKET PST*\n\nBesok, ${formattedTargetDate}, berikut petugas yang bertugas:\n\n${daftarPetugas}\n\nMohon menggunakan *Pakaian Dinas Harian (PDH) Biru lengkap dengan atribut*. Mari berikan pelayanan terbaik dan profesional bagi _#SahabatData._\n\nTerima kasih atas dedikasinya! 🙏\n\n_Pesan Otomatis dari New Pedro BPS Kota Metro_`;
+    } else {
+      const daftarPetugas = petugasWithClean
+        .map((p) => `@${p.cleanNumber}`)
+        .join('\n');
+
+      messageBody = `*PENGINGAT PRESENSI & LOGBOOK PST*\n\nTerima kasih kepada petugas PST hari ini:\n\n${daftarPetugas}\n\nJangan lupa mengisi Daftar Hadir & Logbook Presensi melalui tautan resmi:\n\n🔗 s.bps.go.id/presensi_PST_Metro\n\nKedisiplinan mengisi presensi sangat mendukung akuntabilitas layanan instansi kita. ✨\n\n_Pesan Otomatis dari New Pedro BPS Kota Metro_`;
+    }
+
+    if (dryRun) {
+      return NextResponse.json({
+        dryRun: true,
+        message: 'Ini simulasi, TIDAK ADA pesan yang benar-benar terkirim',
+        targetGroupId: groupId,
+        tanggal: formattedTargetDate,
+        jumlahPetugas: jadwalList.length,
+        mentions,
+        previewPesan: messageBody,
+      });
+    }
+
+    const result = await sendWhatsAppMessage(groupId, messageBody, mentions);
+
+    return NextResponse.json({
+      success: true,
+      count: jadwalList.length,
+      tanggal: formattedTargetDate,
+      result,
+    });
   } catch (error) {
     console.error('Error sending reminder:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
