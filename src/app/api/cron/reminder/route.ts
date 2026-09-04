@@ -61,12 +61,12 @@ export async function GET(request: Request) {
 
     let messageBody: string;
 
-    if (type === 'h-1') {
+    if (type === 'h-1') { 
       const daftarPetugas = petugasWithClean
-        .map((p) => `@${p.cleanNumber} (${p.Sesi})`)
+        .map((p) => `(Sesi ${p.Sesi}) @${p.cleanNumber}`)
         .join('\n');
 
-      messageBody = `🔔 *PENGINGAT JADWAL PIKET PST*\n\nHalo Semuanya👋\nMengingatkan untuk _Rekan Pegawai_ berikut:\n\n${daftarPetugas}\n\n bahwa _Besok_ pada tanggal ${formattedTargetDate} Bpk/Ibu dijadwalkan bertugas sebagai *Petugas Jaga PST BPS Kota Metro*.\n\nMohon untuk menggunakan *Pakaian Dinas Harian (PDH) Biru lengkap dengan atribut*. Mari berikan pelayanan terbaik dan profesional bagi _#SahabatData._\nTerima kasih! 🙏\n\n> Pesan Otomatis dari New Pedro`;
+      messageBody = `🔔 *PENGINGAT JADWAL PIKET PST*\n\nHalo Semuanya👋\nMengingatkan untuk _Rekan Pegawai_ berikut:\n\n${daftarPetugas}\n\nBahwa _besok_ pada tanggal ${formattedTargetDate} Bpk/Ibu dijadwalkan bertugas sebagai *Petugas Jaga PST BPS Kota Metro* sesuai sesi jaga terlampir diatas.\n\nMohon untuk menggunakan *Pakaian Dinas Harian (PDH) Biru lengkap dengan atribut*. Mari berikan pelayanan terbaik dan profesional bagi _#SahabatData._\nTerima kasih! 🙏\n\n> Pesan Otomatis dari New Pedro`;
     } else {
       const daftarPetugas = petugasWithClean
         .map((p) => `@${p.cleanNumber}`)
