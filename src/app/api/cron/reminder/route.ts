@@ -3,6 +3,8 @@ import fs from 'fs';
 import path from 'path';
 import { sendWhatsAppMessage } from '@/lib/whatsapp';
 
+export const dynamic = 'force-dynamic';
+
 function getJadwalByDate(targetDateStr: string) {
   const filePath = path.join(process.cwd(), 'data', 'jadwal_piket.csv');
   const fileContent = fs.readFileSync(filePath, 'utf-8');
