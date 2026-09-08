@@ -69,7 +69,7 @@ export async function GET(request: Request) {
       messageBody = `🔔 *PENGINGAT JADWAL PIKET PST*\n\nHalo Semuanya👋\nMengingatkan untuk _Rekan Pegawai_ berikut:\n\n${daftarPetugas}\n\nBahwa _besok_ pada tanggal ${formattedTargetDate} Bpk/Ibu dijadwalkan bertugas sebagai *Petugas Jaga PST BPS Kota Metro* sesuai sesi jaga terlampir diatas.\n\nMohon untuk menggunakan *Pakaian Dinas Harian (PDH) Biru lengkap dengan atribut*. Mari berikan pelayanan terbaik dan profesional bagi _#SahabatData._\nTerima kasih! 🙏\n\n> Pesan Otomatis dari New Pedro`;
     } else {
       const daftarPetugas = petugasWithClean
-        .map((p) => `@${p.cleanNumber}`)
+        .map((p) => `@${p.cleanNumber}`)    
         .join('\n');
 
       messageBody = `🔔 *PENGINGAT PRESENSI & LOGBOOK PST*\n\nKepada pegawai berikut:\n\n${daftarPetugas}\n\nTerima kasih telah bertugas di meja layanan PST hari ini, Jangan lupa mengisi Daftar Hadir & Logbook Presensi melalui tautan berikut:\n\n🔗 s.bps.go.id/presensi_PST_Metro\n\nKedisiplinan mengisi presensi sangat mendukung akuntabilitas layanan instansi kita.✨\n\n> Pesan Otomatis dari New Pedro`;

@@ -72,6 +72,7 @@ async function searchBPSWebsite(query: string, broaderQuery?: string) {
         api_key: apiKey,
         query: q,
         search_depth: "advanced",
+        include_raw_content: true, // minta isi halaman lebih lengkap, bukan cuma snippet pendek
         ...(domains ? { include_domains: domains } : {}),
         max_results: 5,
       }),
@@ -85,7 +86,13 @@ async function searchBPSWebsite(query: string, broaderQuery?: string) {
     }
     if (data.results && data.results.length > 0) {
       return data.results
-        .map((item: any) => `- Judul: ${item.title}\n  Info: ${item.content}\n  Link: ${item.url}`)
+        .map((item: any) => {
+          // Pakai raw_content (lebih lengkap) kalau ada, fallback ke content (snippet pendek)
+          const isi = item.raw_content
+            ? item.raw_content.slice(0, 3000)
+            : item.content;
+          return `- Judul: ${item.title}\n  Info: ${isi}\n  Link: ${item.url}`;
+        })
         .join("\n\n");
     }
     return null;
