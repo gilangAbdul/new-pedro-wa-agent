@@ -87,10 +87,18 @@ async function searchBPSWebsite(query: string, broaderQuery?: string) {
     if (data.results && data.results.length > 0) {
       return data.results
         .map((item: any) => {
-          // Pakai raw_content (lebih lengkap) kalau ada, fallback ke content (snippet pendek)
-          const isi = item.raw_content
-            ? item.raw_content.slice(0, 3000)
-            : item.content;
+          let isi = item.content; // default: snippet pendek
+          if (item.raw_content) {
+            const raw = item.raw_content;
+            if (raw.length <= 5000) {
+              isi = raw;
+            } else {
+              // Ambil awal (konteks) + bagian tengah (kemungkinan besar tabel/angka ada di sini)
+              const awal = raw.slice(0, 2000);
+              const tengah = raw.slice(Math.floor(raw.length / 2) - 1500, Math.floor(raw.length / 2) + 1500);
+              isi = `${awal}\n[...]\n${tengah}`;
+            }
+          }
           return `- Judul: ${item.title}\n  Info: ${isi}\n  Link: ${item.url}`;
         })
         .join("\n\n");
@@ -141,8 +149,12 @@ async function extractSearchKeywords(
 Balas HANYA dalam format JSON murni: {"specific": "kata kunci spesifik", "broad": "kata kunci umum ditambah 'BPS Kota Metro tabel publikasi'"}
 
 Contoh input: "kalau jumlah pns di kota metro?"
-Contoh output: {"specific": "jumlah PNS Kota Metro", "broad": "data jumlah pegawai negeri sipil PNS BPS Kota Metro tabel publikasi"}`,
-      },
+Contoh output: {"specific": "jumlah PNS Kota Metro", "broad": "data jumlah pegawai negeri sipil PNS BPS Kota Metro tabel publikasi"}
+
+Jika pertanyaan bersifat umum/strategis (bukan angka indikator spesifik), sertakan juga variasi query yang menyebut "narasi metro terkini [bulan-tahun-saat-ini]" pada field "broad".},
+`,
+      
+},
       { role: "user", content: recentContext },
     ]);
 
