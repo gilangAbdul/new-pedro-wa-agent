@@ -124,7 +124,7 @@ async function searchBPSWebsite(query: string, broaderQuery?: string) {
   }
 }
 
-// 2. Ekstrak kata kunci pencarian dari konteks beberapa pesan terakhir (bukan cuma 1)
+// 2. Ekstrak kata kunci pencarian dari konteks beberapa pesan terakhir
 async function extractSearchKeywords(
   messages: { role: "user" | "assistant"; content: string }[]
 ): Promise<{ specific: string; broad: string }> {
@@ -136,11 +136,11 @@ async function extractSearchKeywords(
     const raw = await callAI([
       {
         role: "system",
-        content: `Kamu membaca cuplikan percakapan antara pengguna dan asisten statistik BPS. Tentukan TOPIK UTAMA yang sebenarnya sedang dicari pengguna (perhatikan konteks — kalau pesan terakhir adalah komplain/klarifikasi seperti "kok jadi X" atau "bukan itu maksud saya", topik aslinya biasanya ada di pesan sebelumnya, bukan di kata-kata komplain itu).
+        content: `Kamu membaca cuplikan percakapan pengguna dan asisten statistik. Tentukan TOPIK UTAMA yang dicari pengguna.
+Balas HANYA dalam format JSON murni: {"specific": "kata kunci spesifik", "broad": "kata kunci umum + ditambahkan kata 'terbaru' atau 'berita resmi'"}
 
-Balas HANYA dalam format JSON murni: {"specific": "kata kunci spesifik 3-6 kata", "broad": "kata kunci lebih umum/luas 2-3 kata dari topik yang sama"}
-
-Contoh: percakapan membahas "data desil pengeluaran", lalu user komplain "kok data desil malah jadi inflasi" -> {"specific": "desil pengeluaran Kota Metro", "broad": "desil pengeluaran"}`,
+Contoh input: "jumlah pns di kota metro"
+Contoh output: {"specific": "jumlah PNS Kota Metro", "broad": "jumlah pegawai negeri sipil PNS Kota Metro terbaru publikasi berita resmi"}`,
       },
       { role: "user", content: recentContext },
     ]);
@@ -174,18 +174,17 @@ export async function getAIResponse(
   
   // Suntikkan konteks waktu secara mutlak
   const todayStr = new Date().toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' });
-  dynamicSystemPrompt += `\n\n[INFO SISTEM REAL-TIME: Hari ini adalah tanggal ${todayStr}. Gunakan informasi waktu ini sebagai acuan mutlak. Jika pengguna meminta data untuk bulan/tahun setelah hari ini, sampaikan secara jujur bahwa data tersebut belum terjadi atau belum dirilis resmi.]`;
+  dynamicSystemPrompt += `\n\n[INFO SISTEM REAL-TIME: Hari ini adalah tanggal ${todayStr}. Gunakan informasi waktu ini sebagai acuan. Jika data tahun/bulan ini belum rilis, sampaikan jujur.]`;
 
   if (searchResults) {
     dynamicSystemPrompt += `\n\n=== DATA TERBARU DARI HASIL PENCARIAN WEB (PRIORITAS UTAMA) ===\n${searchResults}\n\n`;
     
-    // Instruksi Kritis Anti-Halusinasi
-    dynamicSystemPrompt += `⚠️ INSTRUKSI KRITIS (WAJIB PATUHI SEBELUM MENJAWAB):
-1. LOGIKA RENTANG TAHUN: Jika judul publikasi/sumber memiliki batasan tahun (contoh: "2021-2025"), MAKA TIDAK ADA DATA 2026 DI DALAMNYA. Jangan memaksakan mengarang angka tahun lain dari publikasi tersebut.
-2. LOGIKA TANGGAL RILIS: Publikasi yang dirilis pada bulan tertentu tidak mungkin memuat laporan data untuk bulan setelahnya.
-3. JANGAN CAMPUR INDIKATOR: PDRB (Pertumbuhan Ekonomi) dan IHK (Inflasi) adalah dua metrik yang BERBEDA. Jangan menggabungkan nilai keduanya seolah-olah itu satu kesatuan jawaban.
-4. KEJUJURAN MUTLAK: Jika data dari pencarian web TIDAK PERSIS mencakup periode waktu atau indikator yang diminta pengguna, JANGAN MENGARANG ANGKA! Jujurlah sampaikan bahwa angka persisnya belum ditemukan atau belum rilis, lalu arahkan pengguna mengecek website resmi BPS.
-5. SERTAKAN SUMBER: Jika ada angka yang benar-benar valid dan cocok secara periode/indikator, wajib cantumkan URL dari hasil pencarian di atas.`;
+    // Instruksi Kritis & Aturan Format Paksa (Anti-Laporan)
+    dynamicSystemPrompt += `⚠️ ATURAN FINAL SEBELUM MENJAWAB (PELANGGARAN AKAN BERAKIBAT FATAL):
+1. GAYA KOMUNIKASI WHATSAPP: Jawablah dalam 2-4 kalimat paragraf pendek mengalir. Seperti membalas chat WA ke teman!
+2. DILARANG KERAS MENGGUNAKAN FORMAT LAPORAN: Kamu TIDAK BOLEH memakai daftar bernomor panjang, bullet points, atau membuat sub-judul tebal seperti "*Sumber Utama:*", "*Penjelasan:*", "*Catatan:*".
+3. JANGAN NGARANG ANGKA: Kalau data hasil pencarian adalah tabel lawas (misal 2022) dan angka terbarunya tidak ada, bilang saja: "Untuk data terbarunya belum ketemu nih, tapi yang ada data tahun 2022...". Jangan pernah menebak-nebak angka!
+4. URL POLOS: Letakkan 1 link paling relevan di akhir paragraf tanpa embel-embel markdown.`;
   }
 
   return await callAI([
