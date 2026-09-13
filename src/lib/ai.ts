@@ -162,6 +162,12 @@ Contoh: percakapan membahas "data desil pengeluaran", lalu user komplain "kok da
 export async function getAIResponse(
   messages: { role: "user" | "assistant"; content: string }[]
 ) {
+  const lastUserMessage = messages[messages.length - 1]?.content || "";
+  const urls = extractUrls(lastUserMessage);
+
+  let searchResults: string | null = null;
+  let sourceLabel = "";
+  
   const { specific, broad } = await extractSearchKeywords(messages);
   console.log("🔑 Keyword pencarian — spesifik:", specific, "| luas:", broad);
 
@@ -169,6 +175,12 @@ export async function getAIResponse(
   console.log("🔍 HASIL RAG GOOGLE BPS METRO:\n", searchResults);
 
   let dynamicSystemPrompt = PEDRO_SYSTEM_PROMPT;
+  const todayStr = new Date().toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' });
+  dynamicSystemPrompt += `\n\n[INFO SISTEM: Hari ini adalah ${todayStr}. Gunakan ini untuk validasi apakah suatu publikasi/data logis memuat periode yang diminta pengguna.]`;
+
+  if (searchResults) {
+    dynamicSystemPrompt += `\n\n=== ${sourceLabel} ===\n${searchResults}\n\nPENTING: Sebelum menjawab, WAJIB cek ATURAN VALIDASI SILANG PERIODE & SUMBER. Gunakan informasi di atas untuk menjawab pertanyaan pengguna dengan akurat. JANGAN MENGARANG ANGKA/DATA. Jika Anda memberikan angka dari informasi di atas, WAJIB sertakan URL Link sumbernya. Jika isi halaman tidak memuat data spesifik yang lengkap atau strukturnya tidak jelas, sampaikan dengan jujur ke pengguna dan arahkan untuk membuka link tersebut secara langsung di browser mereka.`;
+  }
 
   if (searchResults) {
     dynamicSystemPrompt += `\n\n=== DATA TERBARU DARI HASIL PENCARIAN WEB (PRIORITAS UTAMA) ===\n${searchResults}\n\nPENTING: Gunakan informasi di atas untuk menjawab pertanyaan pengguna dengan akurat. JANGAN MENGARANG ANGKA/DATA. Jika Anda memberikan angka dari informasi di atas, WAJIB sertakan URL Link sumbernya agar pengguna bisa membacanya langsung. Jika hasil pencarian TIDAK PERSIS membahas apa yang diminta pengguna tapi masih relevan (topik sama, data berbeda), sampaikan apa yang tersedia dengan jujur dan jelaskan bahwa itu bukan angka persis yang diminta.`;
