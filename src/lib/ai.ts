@@ -124,6 +124,7 @@ async function searchBPSWebsite(query: string, broaderQuery?: string) {
   }
 }
 
+
 // 2. Ekstrak kata kunci pencarian dari konteks beberapa pesan terakhir
 async function extractSearchKeywords(
   messages: { role: "user" | "assistant"; content: string }[]
@@ -136,11 +137,11 @@ async function extractSearchKeywords(
     const raw = await callAI([
       {
         role: "system",
-        content: `Kamu membaca cuplikan percakapan pengguna dan asisten statistik. Tentukan TOPIK UTAMA yang dicari pengguna.
-Balas HANYA dalam format JSON murni: {"specific": "kata kunci spesifik", "broad": "kata kunci umum + ditambahkan kata 'terbaru' atau 'berita resmi'"}
+        content: `Kamu membaca cuplikan percakapan pengguna dan asisten statistik. Tentukan TOPIK UTAMA yang dicari pengguna saat ini. Jika pengguna berganti topik (misal dari "pengangguran" ke "PNS"), fokuslah HANYA pada topik yang baru.
+Balas HANYA dalam format JSON murni: {"specific": "kata kunci spesifik", "broad": "kata kunci umum ditambah 'BPS Kota Metro tabel publikasi'"}
 
-Contoh input: "jumlah pns di kota metro"
-Contoh output: {"specific": "jumlah PNS Kota Metro", "broad": "jumlah pegawai negeri sipil PNS Kota Metro terbaru publikasi berita resmi"}`,
+Contoh input: "kalau jumlah pns di kota metro?"
+Contoh output: {"specific": "jumlah PNS Kota Metro", "broad": "data jumlah pegawai negeri sipil PNS BPS Kota Metro tabel publikasi"}`,
       },
       { role: "user", content: recentContext },
     ]);
@@ -160,7 +161,6 @@ Contoh output: {"specific": "jumlah PNS Kota Metro", "broad": "jumlah pegawai ne
 }
 
 
-
 export async function getAIResponse(
   messages: { role: "user" | "assistant"; content: string }[]
 ) {
@@ -172,19 +172,18 @@ export async function getAIResponse(
 
   let dynamicSystemPrompt = PEDRO_SYSTEM_PROMPT;
   
-  // Suntikkan konteks waktu secara mutlak
   const todayStr = new Date().toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' });
-  dynamicSystemPrompt += `\n\n[INFO SISTEM REAL-TIME: Hari ini adalah tanggal ${todayStr}. Gunakan informasi waktu ini sebagai acuan. Jika data tahun/bulan ini belum rilis, sampaikan jujur.]`;
+  dynamicSystemPrompt += `\n\n[INFO SISTEM REAL-TIME: Hari ini adalah tanggal ${todayStr}. Gunakan informasi waktu ini sebagai acuan mutlak.]`;
 
   if (searchResults) {
     dynamicSystemPrompt += `\n\n=== DATA TERBARU DARI HASIL PENCARIAN WEB (PRIORITAS UTAMA) ===\n${searchResults}\n\n`;
     
-    // Instruksi Kritis & Aturan Format Paksa (Anti-Laporan)
-    dynamicSystemPrompt += `⚠️ ATURAN FINAL SEBELUM MENJAWAB (PELANGGARAN AKAN BERAKIBAT FATAL):
-1. GAYA KOMUNIKASI WHATSAPP: Jawablah dalam 2-4 kalimat paragraf pendek mengalir. Seperti membalas chat WA ke teman!
-2. DILARANG KERAS MENGGUNAKAN FORMAT LAPORAN: Kamu TIDAK BOLEH memakai daftar bernomor panjang, bullet points, atau membuat sub-judul tebal seperti "*Sumber Utama:*", "*Penjelasan:*", "*Catatan:*".
-3. JANGAN NGARANG ANGKA: Kalau data hasil pencarian adalah tabel lawas (misal 2022) dan angka terbarunya tidak ada, bilang saja: "Untuk data terbarunya belum ketemu nih, tapi yang ada data tahun 2022...". Jangan pernah menebak-nebak angka!
-4. URL POLOS: Letakkan 1 link paling relevan di akhir paragraf tanpa embel-embel markdown.`;
+    // Instruksi Kritis & Aturan Format Paksa (Berimbang & Anti-Halusinasi URL)
+    dynamicSystemPrompt += `⚠️ ATURAN FINAL SEBELUM MENJAWAB:
+1. GAYA WHATSAPP: Jawablah dengan santai dalam 2-4 kalimat pendek. BUKAN format laporan.
+2. DILARANG KERAS MENGGUNAKAN FORMAT LAPORAN: Jangan menggunakan daftar bernomor, bullet points, atau sub-judul tebal (seperti "*Sumber:*", "*Catatan:*").
+3. CEGAH HALUSINASI URL (PENTING): JANGAN mendaur ulang URL dari topik sebelumnya. Jika pengguna beralih menanyakan PNS, jangan berikan URL tentang pengangguran (misal yang berakhiran subject=531). Gunakan HANYA URL yang benar-benar tertera pada HASIL PENCARIAN WEB di atas.
+4. SUMBER BERIMBANG: Jika hasil pencarian menampilkan "Tabel Statistik", utamakan data tersebut. Jika yang muncul adalah "Berita/Publikasi/Narasi", gunakan informasinya sebagai pelengkap, asalkan angkanya logis dan sesuai dengan yang ditanyakan pengguna.`;
   }
 
   return await callAI([
