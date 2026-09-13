@@ -159,15 +159,11 @@ Contoh: percakapan membahas "data desil pengeluaran", lalu user komplain "kok da
   }
 }
 
+
+
 export async function getAIResponse(
   messages: { role: "user" | "assistant"; content: string }[]
 ) {
-  const lastUserMessage = messages[messages.length - 1]?.content || "";
-  const urls = extractUrls(lastUserMessage);
-
-  let searchResults: string | null = null;
-  let sourceLabel = "";
-  
   const { specific, broad } = await extractSearchKeywords(messages);
   console.log("🔑 Keyword pencarian — spesifik:", specific, "| luas:", broad);
 
@@ -175,15 +171,21 @@ export async function getAIResponse(
   console.log("🔍 HASIL RAG GOOGLE BPS METRO:\n", searchResults);
 
   let dynamicSystemPrompt = PEDRO_SYSTEM_PROMPT;
+  
+  // Suntikkan konteks waktu secara mutlak
   const todayStr = new Date().toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' });
-  dynamicSystemPrompt += `\n\n[INFO SISTEM: Hari ini adalah ${todayStr}. Gunakan ini untuk validasi apakah suatu publikasi/data logis memuat periode yang diminta pengguna.]`;
+  dynamicSystemPrompt += `\n\n[INFO SISTEM REAL-TIME: Hari ini adalah tanggal ${todayStr}. Gunakan informasi waktu ini sebagai acuan mutlak. Jika pengguna meminta data untuk bulan/tahun setelah hari ini, sampaikan secara jujur bahwa data tersebut belum terjadi atau belum dirilis resmi.]`;
 
   if (searchResults) {
-    dynamicSystemPrompt += `\n\n=== ${sourceLabel} ===\n${searchResults}\n\nPENTING: Sebelum menjawab, WAJIB cek ATURAN VALIDASI SILANG PERIODE & SUMBER. Gunakan informasi di atas untuk menjawab pertanyaan pengguna dengan akurat. JANGAN MENGARANG ANGKA/DATA. Jika Anda memberikan angka dari informasi di atas, WAJIB sertakan URL Link sumbernya. Jika isi halaman tidak memuat data spesifik yang lengkap atau strukturnya tidak jelas, sampaikan dengan jujur ke pengguna dan arahkan untuk membuka link tersebut secara langsung di browser mereka.`;
-  }
-
-  if (searchResults) {
-    dynamicSystemPrompt += `\n\n=== DATA TERBARU DARI HASIL PENCARIAN WEB (PRIORITAS UTAMA) ===\n${searchResults}\n\nPENTING: Gunakan informasi di atas untuk menjawab pertanyaan pengguna dengan akurat. JANGAN MENGARANG ANGKA/DATA. Jika Anda memberikan angka dari informasi di atas, WAJIB sertakan URL Link sumbernya agar pengguna bisa membacanya langsung. Jika hasil pencarian TIDAK PERSIS membahas apa yang diminta pengguna tapi masih relevan (topik sama, data berbeda), sampaikan apa yang tersedia dengan jujur dan jelaskan bahwa itu bukan angka persis yang diminta.`;
+    dynamicSystemPrompt += `\n\n=== DATA TERBARU DARI HASIL PENCARIAN WEB (PRIORITAS UTAMA) ===\n${searchResults}\n\n`;
+    
+    // Instruksi Kritis Anti-Halusinasi
+    dynamicSystemPrompt += `⚠️ INSTRUKSI KRITIS (WAJIB PATUHI SEBELUM MENJAWAB):
+1. LOGIKA RENTANG TAHUN: Jika judul publikasi/sumber memiliki batasan tahun (contoh: "2021-2025"), MAKA TIDAK ADA DATA 2026 DI DALAMNYA. Jangan memaksakan mengarang angka tahun lain dari publikasi tersebut.
+2. LOGIKA TANGGAL RILIS: Publikasi yang dirilis pada bulan tertentu tidak mungkin memuat laporan data untuk bulan setelahnya.
+3. JANGAN CAMPUR INDIKATOR: PDRB (Pertumbuhan Ekonomi) dan IHK (Inflasi) adalah dua metrik yang BERBEDA. Jangan menggabungkan nilai keduanya seolah-olah itu satu kesatuan jawaban.
+4. KEJUJURAN MUTLAK: Jika data dari pencarian web TIDAK PERSIS mencakup periode waktu atau indikator yang diminta pengguna, JANGAN MENGARANG ANGKA! Jujurlah sampaikan bahwa angka persisnya belum ditemukan atau belum rilis, lalu arahkan pengguna mengecek website resmi BPS.
+5. SERTAKAN SUMBER: Jika ada angka yang benar-benar valid dan cocok secara periode/indikator, wajib cantumkan URL dari hasil pencarian di atas.`;
   }
 
   return await callAI([
