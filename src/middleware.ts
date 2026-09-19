@@ -4,13 +4,13 @@ import { isValidSessionCookie } from "@/lib/auth";
 const PUBLIC_PATHS = [
   "/login",
   "/api/auth/login",
-  "/api/conversations/incoming", // dipanggil wa-service, jangan diblokir
-  "/api/cron/reminder",          // dipanggil Vercel Cron
-  "/api/cron/categorize",        // dipanggil Vercel Cron
+  "/api/conversations/incoming",
+  "/api/cron/reminder",
+  "/api/cron/categorize",
   "/api/health-check",
 ];
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   const isPublic = PUBLIC_PATHS.some((path) => pathname.startsWith(path));
@@ -25,8 +25,9 @@ export function middleware(request: NextRequest) {
   }
 
   const cookie = request.cookies.get("pedro_auth")?.value;
+  const valid = await isValidSessionCookie(cookie);
 
-  if (!isValidSessionCookie(cookie)) {
+  if (!valid) {
     if (pathname.startsWith("/api/")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

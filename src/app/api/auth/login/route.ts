@@ -9,11 +9,11 @@ export async function POST(request: NextRequest) {
   }
 
   const response = NextResponse.json({ success: true });
-  response.cookies.set("pedro_auth", createSessionCookieValue(), {
+  response.cookies.set("pedro_auth", await createSessionCookieValue(), {
     httpOnly: true,
     secure: true,
     sameSite: "lax",
-    maxAge: 60 * 60 * 24 * 30, // 30 hari
+    maxAge: 60 * 60 * 24 * 30,
     path: "/",
   });
 
